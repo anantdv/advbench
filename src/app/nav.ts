@@ -17,6 +17,7 @@ export const navItems: NavItem[] = [
   { key: 'projects', label: 'Projects', path: '/projects' },
   { key: 'tasks', label: 'Tasks', path: '/tasks' },
   { key: 'collaboration', label: 'Collaboration', path: '/collaboration' },
+  { key: 'chat', label: 'Chat', path: '/chat' },
   { key: 'sprints', label: 'Sprints', path: '/sprints' },
   { key: 'resources', label: 'Resources', path: '/resources' },
   { key: 'time-tracking', label: 'Time Tracking', path: '/time-tracking' },
@@ -28,6 +29,6 @@ export const navItems: NavItem[] = [
 export const navGroups: NavGroup[] = [
   { title: 'Projects', path: '/projects', items: ['Active Projects', 'Milestones', 'Risks', 'Deliverables'] },
   { title: 'Tasks', path: '/tasks', items: ['My Tasks', 'Team Tasks', 'Backlog', 'Kanban Board'] },
-  { title: 'Collaboration', path: '/collaboration', items: ['Discussions', 'Activity Feed', 'Announcements'] },
+  { title: 'Collaboration', path: '/chat', items: ['Direct Messages', 'Project Rooms', 'Unread Inbox'] },
   { title: 'Sprints', path: '/sprints', items: ['Sprint Board', 'Velocity', 'Burndown'] },
 ];

@@ -8,6 +8,7 @@
     "dev:vite": "vite --host 127.0.0.1",
     "sync:erpnext": "node scripts/sync-erpnext.mjs",
     "setup:erpnext-schema": "node scripts/setup-erpnext-schema.mjs",
+    "setup:erpnext-chat": "node scripts/setup-erpnext-chat.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

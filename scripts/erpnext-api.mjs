@@ -1,5 +1,24 @@
 import http from 'node:http';
-import { deleteProject, deleteSprint, deleteTask, loginWithCredentials, saveProject, saveSprint, saveTask, syncCache } from './erpnext-bridge.mjs';
+import {
+  addChatRoomParticipant,
+  createOrOpenChatRoom,
+  deleteProject,
+  deleteSprint,
+  deleteTask,
+  fetchChatRoomMessages,
+  fetchChatUsers,
+  listChatRooms,
+  loadConfig,
+  getChatUnreadSummary,
+  loginWithCredentials,
+  markChatRoomAsRead,
+  removeChatRoomParticipant,
+  saveProject,
+  saveSprint,
+  saveTask,
+  sendChatRoomMessage,
+  syncCache,
+} from './erpnext-bridge.mjs';
 
 const port = Number(process.env.ERPNEXT_API_PORT || 8787);
 
@@ -40,8 +59,13 @@ function json(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
+function getActor(req, body = {}) {
+  return String(req.headers['x-advbench-user'] || body.actor || body.user || '').trim();
+}
+
 const server = http.createServer(async (req, res) => {
   try {
+    const config = loadConfig();
     const url = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`);
 
     if (req.method === 'GET' && url.pathname === '/api/status') {
@@ -97,6 +121,75 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
       return json(res, 200, { ok: true });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/chat/users') {
+      const actor = getActor(req);
+      if (!actor) return json(res, 401, { error: 'Missing chat user.' });
+      const query = url.searchParams.get('q') || '';
+      const users = await fetchChatUsers(config, query);
+      return json(res, 200, { ok: true, data: users });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/chat/rooms') {
+      const actor = getActor(req);
+      if (!actor) return json(res, 401, { error: 'Missing chat user.' });
+      const query = url.searchParams.get('q') || '';
+      const rooms = await listChatRooms(config, actor, query);
+      return json(res, 200, { ok: true, data: rooms });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/chat/unread') {
+      const actor = getActor(req);
+      if (!actor) return json(res, 401, { error: 'Missing chat user.' });
+      const unread = await getChatUnreadSummary(config, actor);
+      return json(res, 200, { ok: true, data: unread });
+    }
+
+    if (url.pathname.startsWith('/api/chat/rooms/')) {
+      const segments = url.pathname.split('/').filter(Boolean);
+      const roomId = decodeURIComponent(segments[3] || '');
+      const action = segments[4] || '';
+      const actor = getActor(req);
+      if (!actor) return json(res, 401, { error: 'Missing chat user.' });
+
+      if (req.method === 'GET' && action === 'messages') {
+        const before = url.searchParams.get('before') || undefined;
+        const limit = Number(url.searchParams.get('limit') || 30);
+        const payload = await fetchChatRoomMessages(config, actor, roomId, { before, limit });
+        return json(res, 200, { ok: true, data: payload });
+      }
+
+      if (req.method === 'POST' && action === 'messages') {
+        const body = await readBody(req);
+        const message = await sendChatRoomMessage(config, actor, roomId, body);
+        return json(res, 200, { ok: true, data: message });
+      }
+
+      if (req.method === 'POST' && action === 'read') {
+        await markChatRoomAsRead(config, actor, roomId);
+        return json(res, 200, { ok: true });
+      }
+
+      if (action === 'members' && req.method === 'POST') {
+        const body = await readBody(req);
+        await addChatRoomParticipant(config, actor, roomId, body.user, body.role || 'member');
+        return json(res, 200, { ok: true });
+      }
+
+      if (action === 'members' && req.method === 'DELETE') {
+        const body = await readBody(req);
+        await removeChatRoomParticipant(config, actor, roomId, body.user);
+        return json(res, 200, { ok: true });
+      }
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/chat/rooms') {
+      const body = await readBody(req);
+      const actor = getActor(req, body);
+      if (!actor) return json(res, 401, { error: 'Missing chat user.' });
+      const room = await createOrOpenChatRoom(config, actor, body);
+      return json(res, 200, { ok: true, data: room });
     }
 
     res.writeHead(404, { 'Content-Type': 'application/json' });

@@ -7,6 +7,7 @@ const quickActions = [
   { label: 'Go to Dashboard', path: '/' },
   { label: 'Open Projects', path: '/projects' },
   { label: 'Open Tasks', path: '/tasks' },
+  { label: 'Open Chat', path: '/chat' },
   { label: 'Open Sprints', path: '/sprints' },
   { label: 'Open Resources', path: '/resources' },
   { label: 'Open Time Tracking', path: '/time-tracking' },
@@ -90,11 +91,11 @@ export function CommandPalette() {
                 type="button"
                 className="command-palette-item"
                 onClick={() => {
-                navigate(section.path);
-                setOpen(false);
-                setSearchQuery('');
-              }}
-            >
+                  navigate(section.path);
+                  setOpen(false);
+                  setSearchQuery('');
+                }}
+              >
                 <strong>{section.label}</strong>
                 <span>{section.path}</span>
               </button>
@@ -109,11 +110,11 @@ export function CommandPalette() {
                 type="button"
                 className="command-palette-item"
                 onClick={() => {
-                navigate(action.path);
-                setOpen(false);
-                setSearchQuery('');
-              }}
-            >
+                  navigate(action.path);
+                  setOpen(false);
+                  setSearchQuery('');
+                }}
+              >
                 <strong>{action.label}</strong>
                 <span>Open workspace section</span>
               </button>

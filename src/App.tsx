@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
+import { ChatPage } from './pages/ChatPage';
 import { ModulePage } from './pages/ModulePage';
 import { useAuthStore } from './store/authStore';
 import type { SectionKey } from './types';
@@ -11,6 +12,7 @@ const sectionToPath: Record<SectionKey, string> = {
   projects: '/projects',
   tasks: '/tasks',
   collaboration: '/collaboration',
+  chat: '/chat',
   sprints: '/sprints',
   resources: '/resources',
   'time-tracking': '/time-tracking',
@@ -30,6 +32,7 @@ function App() {
         <Route path={sectionToPath.projects} element={<ModulePage />} />
         <Route path={sectionToPath.tasks} element={<ModulePage />} />
         <Route path={sectionToPath.collaboration} element={<ModulePage />} />
+        <Route path={sectionToPath.chat} element={<ChatPage />} />
         <Route path={sectionToPath.sprints} element={<ModulePage />} />
         <Route path={sectionToPath.resources} element={<ModulePage />} />
         <Route path={sectionToPath['time-tracking']} element={<ModulePage />} />

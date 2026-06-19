@@ -1,7 +1,6 @@
 import { type FormEvent, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { erpnextConfig } from '../config/erpnext';
 import logo from '../../cropped-ADV-Logo-300x115.png';
 
 export function LoginPage() {
@@ -23,32 +22,21 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${erpnextConfig.baseUrl}/api/method/login`, {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Accept: 'application/json',
+          'Content-Type': 'application/json',
         },
-        body: new URLSearchParams({
-          usr: username,
-          pwd: password,
-        }),
-        credentials: 'include',
+        body: JSON.stringify({ username, password }),
       });
-      const raw = await response.text();
-      let payload: { message?: string; error?: string; full_name?: string; raw?: string } | null = null;
-      try {
-        payload = raw ? JSON.parse(raw) : null;
-      } catch {
-        payload = { raw };
-      }
-      if (!response.ok) {
-        throw new Error(payload?.message || payload?.error || payload?.raw || 'Login failed');
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Login failed');
       }
 
       setUser({
-        username,
-        displayName: payload?.full_name || username,
+        username: payload.user.username,
+        displayName: payload.user.displayName || payload.user.username,
       });
       navigate('/', { replace: true });
     } catch (loginError) {

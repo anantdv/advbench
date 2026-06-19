@@ -10,6 +10,7 @@ const routeToSection: Record<string, SectionKey> = {
   '/projects': 'projects',
   '/tasks': 'tasks',
   '/collaboration': 'collaboration',
+  '/chat': 'chat',
   '/sprints': 'sprints',
   '/resources': 'resources',
   '/time-tracking': 'time-tracking',

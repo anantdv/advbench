@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Topbar } from '../components/layout/Topbar';
 import { SectionFrame } from '../components/dashboard/SectionFrame';
 import { DetailDrawer } from '../components/DetailDrawer';
@@ -35,6 +35,10 @@ const copy: Record<SectionKey, { title: string; description: string }> = {
   collaboration: {
     title: 'Collaboration',
     description: 'Track team activity, announcements, and delivery pulse in one view.',
+  },
+  chat: {
+    title: 'Chat',
+    description: 'Direct messages, project rooms, and member-managed conversation threads.',
   },
   sprints: {
     title: 'Sprints',
@@ -165,6 +169,7 @@ function LinkField({
 }
 
 export function ModulePage() {
+  const navigate = useNavigate();
   const activeSection = useUiStore((state) => state.activeSection);
   const searchQuery = useUiStore((state) => state.searchQuery);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -447,6 +452,17 @@ export function ModulePage() {
               <div className="form-actions">
                 <button type="button" className="primary-btn" onClick={() => openProject('edit', selectedProject)}>
                   Edit Project
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() =>
+                    navigate(
+                      `/chat?project=${encodeURIComponent(selectedProject.code)}&title=${encodeURIComponent(selectedProject.name)}`,
+                    )
+                  }
+                >
+                  Open Project Chat
                 </button>
                 <form action="/api/projects/delete" method="post">
                   <input type="hidden" name="docname" value={selectedProject.code} />

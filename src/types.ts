@@ -3,6 +3,7 @@ export type SectionKey =
   | 'projects'
   | 'tasks'
   | 'collaboration'
+  | 'chat'
   | 'sprints'
   | 'resources'
   | 'time-tracking'

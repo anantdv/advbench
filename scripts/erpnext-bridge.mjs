@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 const root = process.cwd();
@@ -389,4 +390,535 @@ export async function deleteSprint(input) {
   });
   await syncCache();
   return response;
+}
+
+const chatDoctypes = {
+  room: 'Chat Room',
+  member: 'Chat Room Member',
+  message: 'Chat Message',
+};
+
+function resourcePath(doctype, name) {
+  const base = `/api/resource/${encodeURIComponent(doctype)}`;
+  return name ? `${base}/${encodeURIComponent(name)}` : base;
+}
+
+function listQuery({
+  fields,
+  filters,
+  orderBy,
+  limitPageLength,
+  limitStart,
+}) {
+  const params = new URLSearchParams();
+  if (fields?.length) {
+    params.set('fields', JSON.stringify(fields));
+  }
+  if (filters?.length) {
+    params.set('filters', JSON.stringify(filters));
+  }
+  if (orderBy) {
+    params.set('order_by', orderBy);
+  }
+  if (limitPageLength !== undefined) {
+    params.set('limit_page_length', String(limitPageLength));
+  }
+  if (limitStart !== undefined && limitStart > 0) {
+    params.set('limit_start', String(limitStart));
+  }
+  return params.toString();
+}
+
+function mapChatUser(item) {
+  return {
+    user: String(item.name ?? item.user ?? ''),
+    fullName: String(item.full_name ?? item.fullName ?? item.name ?? ''),
+    email: String(item.email ?? ''),
+    designation: String(item.designation ?? ''),
+    department: String(item.department ?? ''),
+  };
+}
+
+function mapChatMember(item) {
+  return {
+    user: String(item.user ?? ''),
+    fullName: String(item.full_name ?? item.fullName ?? item.user ?? ''),
+    role: String(item.role ?? 'member'),
+    unreadCount: Number(item.unread_count ?? 0),
+    lastReadAt: item.last_read_at ? String(item.last_read_at) : null,
+    muted: Boolean(item.muted ?? 0),
+  };
+}
+
+function mapChatRoom(item, members = []) {
+  return {
+    id: String(item.name ?? item.room_key ?? ''),
+    roomType: String(item.room_type ?? 'direct'),
+    title: String(item.title ?? ''),
+    project: item.project ? String(item.project) : null,
+    projectTitle: item.project_title ? String(item.project_title) : item.project ? String(item.project) : null,
+    lastMessageAt: item.last_message_at ? String(item.last_message_at) : null,
+    lastMessagePreview: item.last_message_preview ? String(item.last_message_preview) : null,
+    lastSender: item.last_sender ? String(item.last_sender) : null,
+    memberCount: Number(item.member_count ?? members.length ?? 0),
+    unreadCount: 0,
+    members,
+  };
+}
+
+function mapChatMessage(item, actor) {
+  return {
+    id: String(item.name ?? item.message_key ?? ''),
+    roomId: String(item.room ?? ''),
+    sender: String(item.sender ?? ''),
+    senderName: String(item.sender_name ?? item.sender ?? ''),
+    content: String(item.content ?? ''),
+    messageType: String(item.message_type ?? 'text'),
+    clientMessageId: item.client_message_id ? String(item.client_message_id) : null,
+    createdAt: String(item.creation ?? item.modified ?? ''),
+    mine: actor ? String(item.sender ?? '') === actor : false,
+  };
+}
+
+async function listChatUsers(config) {
+  const response = await erpnextJson(
+    config,
+    `${resourcePath('User')}?${listQuery({
+      fields: ['name', 'full_name', 'email', 'designation', 'department', 'enabled'],
+      filters: [['enabled', '=', 1]],
+      orderBy: 'full_name asc',
+      limitPageLength: 500,
+    })}`,
+  );
+  return (response.data ?? []).map(mapChatUser).filter((item) => item.user && item.user !== 'Guest' && item.user !== 'Administrator');
+}
+
+async function getChatRoomDocs(config, roomIds) {
+  if (roomIds.length === 0) return [];
+  const response = await erpnextJson(
+    config,
+    `${resourcePath(chatDoctypes.room)}?${listQuery({
+      fields: ['name', 'room_key', 'room_type', 'title', 'project', 'project_title', 'last_message_at', 'last_message_preview', 'last_sender', 'member_count', 'created_by'],
+      filters: [['name', 'in', roomIds]],
+      orderBy: 'last_message_at desc, modified desc',
+      limitPageLength: roomIds.length + 20,
+    })}`,
+  );
+  return response.data ?? [];
+}
+
+async function getChatMemberDocs(config, filters, limitPageLength = 500) {
+  const response = await erpnextJson(
+    config,
+    `${resourcePath(chatDoctypes.member)}?${listQuery({
+      fields: ['name', 'room', 'user', 'full_name', 'role', 'last_read_at', 'unread_count', 'muted'],
+      filters,
+      orderBy: 'modified desc',
+      limitPageLength,
+    })}`,
+  );
+  return response.data ?? [];
+}
+
+async function getChatMessageDocs(config, roomId, actor, before, limit = 30) {
+  const filters = [['room', '=', roomId]];
+  if (before) {
+    filters.push(['creation', '<', before]);
+  }
+  const response = await erpnextJson(
+    config,
+    `${resourcePath(chatDoctypes.message)}?${listQuery({
+      fields: ['name', 'room', 'sender', 'sender_name', 'content', 'message_type', 'client_message_id', 'creation', 'modified'],
+      filters,
+      orderBy: 'creation desc',
+      limitPageLength: limit + 1,
+    })}`,
+  );
+  const rows = (response.data ?? []).map((row) => mapChatMessage(row, actor));
+  const hasMore = rows.length > limit;
+  const items = (hasMore ? rows.slice(0, limit) : rows).reverse();
+  return {
+    items,
+    hasMore,
+    nextCursor: hasMore && items.length > 0 ? items[0].createdAt : null,
+  };
+}
+
+async function ensureChatMember(config, roomId, user, role = 'member', actor = user) {
+  const memberKey = `${roomId}|${user}`;
+  const existing = await erpnextJson(
+    config,
+    `${resourcePath(chatDoctypes.member)}?${listQuery({
+      fields: ['name', 'room', 'user', 'full_name', 'role', 'last_read_at', 'unread_count', 'muted'],
+      filters: [['name', '=', memberKey]],
+      limitPageLength: 1,
+    })}`,
+  );
+
+  if ((existing.data ?? []).length > 0) {
+    return (existing.data ?? [])[0];
+  }
+
+  const userDocs = await listChatUsers(config);
+  const profile = userDocs.find((item) => item.user === user);
+  const payload = {
+    member_key: memberKey,
+    room: roomId,
+    user,
+    full_name: profile?.fullName || user,
+    role,
+    unread_count: 0,
+    muted: 0,
+  };
+
+  return erpnextJson(config, resourcePath(chatDoctypes.member), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-ADVBench-User': actor },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function updateChatRoom(config, roomId, payload, actor) {
+  return erpnextJson(config, resourcePath(chatDoctypes.room, roomId), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-ADVBench-User': actor },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function updateChatMember(config, memberId, payload, actor) {
+  return erpnextJson(config, resourcePath(chatDoctypes.member, memberId), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-ADVBench-User': actor },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function createChatMessage(config, payload, actor) {
+  return erpnextJson(config, resourcePath(chatDoctypes.message), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-ADVBench-User': actor },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function getChatRoomByKey(config, roomKey) {
+  const response = await erpnextJson(
+    config,
+    `${resourcePath(chatDoctypes.room)}?${listQuery({
+      fields: ['name', 'room_key', 'room_type', 'title', 'project', 'project_title', 'last_message_at', 'last_message_preview', 'last_sender', 'member_count', 'created_by'],
+      filters: [['room_key', '=', roomKey]],
+      limitPageLength: 1,
+    })}`,
+  );
+  return (response.data ?? [])[0] ?? null;
+}
+
+async function getRoomMembersWithProfiles(config, roomId) {
+  const members = await getChatMemberDocs(config, [['room', '=', roomId]], 500);
+  return members.map(mapChatMember);
+}
+
+async function getRoomSummary(config, roomId, actor) {
+  const room = await getChatRoomByKey(config, roomId);
+  if (!room) return null;
+  const members = await getRoomMembersWithProfiles(config, roomId);
+  const current = members.find((member) => member.user === actor);
+  const mapped = mapChatRoom(room, members);
+  mapped.unreadCount = current?.unreadCount ?? 0;
+  return mapped;
+}
+
+export async function listChatRooms(config, actor, search = '') {
+  const memberDocs = await getChatMemberDocs(config, [['user', '=', actor]], 500);
+  const roomIds = [...new Set(memberDocs.map((item) => String(item.room ?? '')).filter(Boolean))];
+  if (roomIds.length === 0) return [];
+
+  const roomDocs = await getChatRoomDocs(config, roomIds);
+  const memberDocsForRooms = await getChatMemberDocs(config, [['room', 'in', roomIds]], 1000);
+  const memberByRoom = new Map();
+  for (const member of memberDocsForRooms) {
+    const key = String(member.room ?? '');
+    if (!memberByRoom.has(key)) memberByRoom.set(key, []);
+    memberByRoom.get(key).push(mapChatMember(member));
+  }
+
+  const currentMemberByRoom = new Map(memberDocs.map((member) => [String(member.room ?? ''), mapChatMember(member)]));
+  const term = search.trim().toLowerCase();
+
+  const rooms = roomDocs.map((room) => {
+    const members = memberByRoom.get(String(room.name ?? room.room_key ?? '')) ?? [];
+    const current = currentMemberByRoom.get(String(room.name ?? room.room_key ?? ''));
+    const mapped = mapChatRoom(room, members);
+    mapped.unreadCount = current?.unreadCount ?? 0;
+    if (!mapped.title) {
+      if (mapped.roomType === 'project_group') {
+        mapped.title = mapped.projectTitle ? `Project Chat: ${mapped.projectTitle}` : `Project Chat: ${mapped.project ?? 'Project'}`;
+      } else {
+        const peers = members.filter((member) => member.user !== actor).map((member) => member.fullName || member.user);
+        mapped.title = peers.length > 0 ? peers.join(', ') : 'Direct message';
+      }
+    }
+    return mapped;
+  });
+
+  const filtered = term
+    ? rooms.filter((room) => {
+        const memberNames = room.members.map((member) => member.fullName || member.user).join(' ');
+        return [room.title, room.project ?? '', room.projectTitle ?? '', room.lastMessagePreview ?? '', memberNames]
+          .join(' ')
+          .toLowerCase()
+          .includes(term);
+      })
+    : rooms;
+
+  return filtered.sort((left, right) => (right.lastMessageAt ?? right.id).localeCompare(left.lastMessageAt ?? left.id));
+}
+
+export async function fetchChatUsers(config, search = '') {
+  const users = await listChatUsers(config);
+  const term = search.trim().toLowerCase();
+  if (!term) return users.slice(0, 50);
+  return users.filter((user) => [user.user, user.fullName, user.email, user.department, user.designation].join(' ').toLowerCase().includes(term));
+}
+
+export async function fetchChatRoom(config, actor, roomId) {
+  return getRoomSummary(config, roomId, actor);
+}
+
+export async function fetchChatRoomMessages(config, actor, roomId, options = {}) {
+  const memberDocs = await getChatMemberDocs(config, [['room', '=', roomId], ['user', '=', actor]], 1);
+  if (memberDocs.length === 0) {
+    throw new Error('You do not have access to this chat room.');
+  }
+  const payload = await getChatMessageDocs(config, roomId, actor, options.before ?? null, options.limit ?? 30);
+  return {
+    room: await getRoomSummary(config, roomId, actor),
+    ...payload,
+  };
+}
+
+export async function createOrOpenChatRoom(config, actor, input) {
+  const roomType = input.roomType || 'direct';
+  const participantUsers = Array.from(new Set([actor, ...(input.participantUsers ?? []).filter(Boolean)])).filter(Boolean);
+
+  if (roomType === 'direct') {
+    if (participantUsers.length < 2) {
+      throw new Error('A direct chat needs another participant.');
+    }
+    const roomKey = `direct:${participantUsers.slice().sort().join('|')}`;
+    const existing = await getChatRoomByKey(config, roomKey);
+    if (existing) {
+      await ensureChatMember(config, String(existing.name), actor, 'owner', actor);
+      for (const user of participantUsers) {
+        await ensureChatMember(config, String(existing.name), user, user === actor ? 'owner' : 'member', actor);
+      }
+      await updateChatRoom(config, String(existing.name), { member_count: participantUsers.length }, actor);
+      return getRoomSummary(config, String(existing.name), actor);
+    }
+
+    await erpnextJson(config, resourcePath(chatDoctypes.room), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-ADVBench-User': actor },
+      body: JSON.stringify({
+        room_key: roomKey,
+        room_type: 'direct',
+        title: input.title || participantUsers.filter((user) => user !== actor).join(', ') || 'Direct message',
+        project: '',
+        project_title: '',
+        created_by: actor,
+        last_message_at: '',
+        last_message_preview: '',
+        last_sender: '',
+        member_count: participantUsers.length,
+      }),
+    });
+
+    for (const user of participantUsers) {
+      await ensureChatMember(config, roomKey, user, user === actor ? 'owner' : 'member', actor);
+    }
+    return getRoomSummary(config, roomKey, actor);
+  }
+
+  const project = input.project?.trim();
+  if (!project) {
+    throw new Error('Project group chats require a project.');
+  }
+  const roomKey = `project:${project}`;
+  const existing = await getChatRoomByKey(config, roomKey);
+  if (existing) {
+    await ensureChatMember(config, String(existing.name), actor, 'owner', actor);
+    for (const user of participantUsers) {
+      await ensureChatMember(config, String(existing.name), user, user === actor ? 'owner' : 'member', actor);
+    }
+    const memberCount = (await getChatMemberDocs(config, [['room', '=', String(existing.name)]], 1000)).length;
+    await updateChatRoom(config, String(existing.name), { member_count: memberCount }, actor);
+    return getRoomSummary(config, String(existing.name), actor);
+  }
+
+  await erpnextJson(config, resourcePath(chatDoctypes.room), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-ADVBench-User': actor },
+    body: JSON.stringify({
+      room_key: roomKey,
+      room_type: 'project_group',
+      title: input.title || `Project Chat: ${input.projectTitle || project}`,
+      project,
+      project_title: input.projectTitle || project,
+      created_by: actor,
+      last_message_at: '',
+      last_message_preview: '',
+      last_sender: '',
+      member_count: 1,
+    }),
+  });
+
+  await ensureChatMember(config, roomKey, actor, 'owner', actor);
+  for (const user of participantUsers.filter((item) => item !== actor)) {
+    await ensureChatMember(config, roomKey, user, 'member', actor);
+  }
+  return getRoomSummary(config, roomKey, actor);
+}
+
+export async function sendChatRoomMessage(config, actor, roomId, input) {
+  const room = await getChatRoomByKey(config, roomId);
+  if (!room) {
+    throw new Error('Chat room not found.');
+  }
+
+  const memberDocs = await getChatMemberDocs(config, [['room', '=', roomId], ['user', '=', actor]], 1);
+  if (memberDocs.length === 0) {
+    throw new Error('You do not have access to this chat room.');
+  }
+
+  const clientMessageId = input.clientMessageId || '';
+  if (clientMessageId) {
+    const existing = await erpnextJson(
+      config,
+      `${resourcePath(chatDoctypes.message)}?${listQuery({
+        fields: ['name', 'room', 'sender', 'sender_name', 'content', 'message_type', 'client_message_id', 'creation', 'modified'],
+        filters: [['client_message_id', '=', clientMessageId]],
+        limitPageLength: 1,
+      })}`,
+    );
+    const existingRow = (existing.data ?? [])[0];
+    if (existingRow) {
+      return mapChatMessage(existingRow, actor);
+    }
+  }
+
+  const messageKey = `${roomId}|${clientMessageId || randomUUID()}`;
+  const created = await createChatMessage(
+    config,
+    {
+      message_key: messageKey,
+      room: roomId,
+      sender: actor,
+      sender_name: actor,
+      content: input.content,
+      message_type: 'text',
+      client_message_id: clientMessageId || '',
+    },
+    actor,
+  );
+  const message = created.data ?? created;
+
+  await updateChatRoom(
+    config,
+    roomId,
+    {
+      last_message_at: new Date().toISOString(),
+      last_message_preview: input.content.slice(0, 180),
+      last_sender: actor,
+    },
+    actor,
+  );
+
+  const roomMembers = await getChatMemberDocs(config, [['room', '=', roomId]], 1000);
+  await Promise.all(
+    roomMembers
+      .filter((member) => String(member.user ?? '') !== actor)
+      .map((member) =>
+        updateChatMember(
+          config,
+          String(member.name ?? `${roomId}|${member.user}`),
+          {
+            unread_count: Number(member.unread_count ?? 0) + 1,
+          },
+          actor,
+        ),
+      ),
+  );
+
+  return mapChatMessage(message, actor);
+}
+
+export async function markChatRoomAsRead(config, actor, roomId) {
+  const memberDocs = await getChatMemberDocs(config, [['room', '=', roomId], ['user', '=', actor]], 1);
+  if (memberDocs.length === 0) {
+    throw new Error('You do not have access to this chat room.');
+  }
+
+  const member = memberDocs[0];
+  await updateChatMember(
+    config,
+    String(member.name ?? `${roomId}|${actor}`),
+    {
+      unread_count: 0,
+      last_read_at: new Date().toISOString(),
+    },
+    actor,
+  );
+  return { ok: true };
+}
+
+export async function addChatRoomParticipant(config, actor, roomId, user, role = 'member') {
+  const room = await getChatRoomByKey(config, roomId);
+  if (!room) throw new Error('Chat room not found.');
+  if (String(room.room_type ?? 'direct') === 'direct' && user !== actor) {
+    throw new Error('Direct chats cannot be modified.');
+  }
+  const currentMemberDocs = await getChatMemberDocs(config, [['room', '=', roomId], ['user', '=', actor]], 1);
+  if (currentMemberDocs.length === 0) {
+    throw new Error('You do not have access to this chat room.');
+  }
+  await ensureChatMember(config, roomId, user, role, actor);
+  const memberCount = (await getChatMemberDocs(config, [['room', '=', roomId]], 1000)).length;
+  await updateChatRoom(config, roomId, { member_count: memberCount }, actor);
+  return { ok: true };
+}
+
+export async function removeChatRoomParticipant(config, actor, roomId, user) {
+  const room = await getChatRoomByKey(config, roomId);
+  if (!room) throw new Error('Chat room not found.');
+  const currentMemberDocs = await getChatMemberDocs(config, [['room', '=', roomId], ['user', '=', actor]], 1);
+  if (currentMemberDocs.length === 0) {
+    throw new Error('You do not have access to this chat room.');
+  }
+  if (String(room.room_type ?? 'direct') === 'direct' && user !== actor) {
+    throw new Error('Direct chats cannot be modified.');
+  }
+
+  const memberDocs = await getChatMemberDocs(config, [['room', '=', roomId], ['user', '=', user]], 1);
+  if (memberDocs.length === 0) return { ok: true };
+
+  await erpnextJson(config, resourcePath(chatDoctypes.member, String(memberDocs[0].name)), {
+    method: 'DELETE',
+    headers: { 'X-ADVBench-User': actor },
+  });
+  const memberCount = (await getChatMemberDocs(config, [['room', '=', roomId]], 1000)).length;
+  await updateChatRoom(config, roomId, { member_count: memberCount }, actor);
+  return { ok: true };
+}
+
+export async function getChatUnreadSummary(config, actor) {
+  const memberDocs = await getChatMemberDocs(config, [['user', '=', actor]], 1000);
+  const roomUnreadCounts = {};
+  let totalUnreadCount = 0;
+  for (const member of memberDocs) {
+    const unread = Number(member.unread_count ?? 0);
+    roomUnreadCounts[String(member.room ?? '')] = unread;
+    totalUnreadCount += unread;
+  }
+  return { totalUnreadCount, roomUnreadCounts };
 }

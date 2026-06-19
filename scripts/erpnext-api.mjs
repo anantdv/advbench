@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { deleteProject, deleteSprint, deleteTask, saveProject, saveSprint, saveTask, syncCache } from './erpnext-bridge.mjs';
+import { deleteProject, deleteSprint, deleteTask, loginWithCredentials, saveProject, saveSprint, saveTask, syncCache } from './erpnext-bridge.mjs';
 
 const port = Number(process.env.ERPNEXT_API_PORT || 8787);
 
@@ -53,6 +53,12 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, syncedAt: payload.syncedAt });
     }
 
+    if (req.method === 'POST' && url.pathname === '/api/auth/login') {
+      const body = await readBody(req);
+      const user = await loginWithCredentials(body);
+      return json(res, 200, { ok: true, user });
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/projects/save') {
       const body = await readBody(req);
       await saveProject(body);
@@ -87,6 +93,10 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       await deleteSprint(body);
       return redirect(res, body.returnTo || '/sprints');
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
+      return json(res, 200, { ok: true });
     }
 
     res.writeHead(404, { 'Content-Type': 'application/json' });

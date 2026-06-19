@@ -1,4 +1,6 @@
-const baseUrl = import.meta.env.VITE_ERPNEXT_BASE_URL?.trim().replace(/\/+$/, '');
+export const DEFAULT_ERPNEXT_BASE_URL = 'http://182.71.135.110:8088';
+
+const baseUrl = import.meta.env.VITE_ERPNEXT_BASE_URL?.trim().replace(/\/+$/, '') || DEFAULT_ERPNEXT_BASE_URL;
 
 export const erpnextConfig = {
   baseUrl,

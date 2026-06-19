@@ -4,6 +4,7 @@ import path from 'node:path';
 const root = process.cwd();
 const envPath = path.join(root, '.env.local');
 const cachePath = path.join(root, 'src', 'generated', 'erpnext-cache.json');
+const defaultBaseUrl = 'http://182.71.135.110:8088';
 
 function parseEnv(text) {
   const result = {};
@@ -21,7 +22,7 @@ function parseEnv(text) {
 
 export function loadConfig() {
   const env = fs.existsSync(envPath) ? parseEnv(fs.readFileSync(envPath, 'utf8')) : {};
-  const baseUrl = (env.VITE_ERPNEXT_BASE_URL || process.env.VITE_ERPNEXT_BASE_URL || '').trim().replace(/\/+$/, '');
+  const baseUrl = (env.VITE_ERPNEXT_BASE_URL || process.env.VITE_ERPNEXT_BASE_URL || defaultBaseUrl).trim().replace(/\/+$/, '');
 
   if (!baseUrl) {
     throw new Error('ERPNext base URL is missing.');
@@ -64,6 +65,41 @@ export async function erpnextJson(config, requestPath, init = {}) {
   }
 
   return payload;
+}
+
+export async function loginWithCredentials(input) {
+  const config = loadConfig();
+  const body = new URLSearchParams({
+    usr: input.username || '',
+    pwd: input.password || '',
+  });
+
+  const response = await fetch(buildUrl(config.baseUrl, '/api/method/login'), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  });
+
+  const text = await response.text();
+  let payload;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = { raw: text };
+  }
+
+  if (!response.ok) {
+    const message = payload?.message || payload?.error || 'ERPNext login failed.';
+    throw new Error(message);
+  }
+
+  return {
+    username: input.username,
+    displayName: payload?.full_name || input.username,
+  };
 }
 
 export function mapProject(item) {

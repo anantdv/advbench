@@ -1,7 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { DashboardPage } from './pages/DashboardPage';
+import { LoginPage } from './pages/LoginPage';
 import { ModulePage } from './pages/ModulePage';
+import { useAuthStore } from './store/authStore';
 import type { SectionKey } from './types';
 
 const sectionToPath: Record<SectionKey, string> = {
@@ -18,9 +20,12 @@ const sectionToPath: Record<SectionKey, string> = {
 };
 
 function App() {
+  const user = useAuthStore((state) => state.user);
+
   return (
     <Routes>
-      <Route element={<AppShell />}>
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route element={user ? <AppShell /> : <Navigate to="/login" replace />}>
         <Route index element={<DashboardPage />} />
         <Route path={sectionToPath.projects} element={<ModulePage />} />
         <Route path={sectionToPath.tasks} element={<ModulePage />} />

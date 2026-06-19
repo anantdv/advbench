@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchDashboard } from '../lib/erpnext';
 import { Topbar } from '../components/layout/Topbar';
@@ -10,12 +11,19 @@ const pageContent = {
 };
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: fetchDashboard,
   });
 
   const payload = data;
+  const metricRoutes: Record<string, string> = {
+    'Active Projects': '/projects',
+    'Delayed Projects': '/projects',
+    'Completed Projects': '/projects',
+    'Tasks Completed': '/tasks',
+  };
 
   return (
     <>
@@ -25,14 +33,14 @@ export function DashboardPage() {
 
       {payload ? (
         <>
-          <MetricGrid metrics={payload.summary} />
+          <MetricGrid metrics={payload.summary} onMetricClick={(metric) => navigate(metricRoutes[metric.label] || '/reports')} />
 
           <section className="dashboard-stack">
             <SectionFrame kicker="Projects" title="Live ERPNext projects" className="panel-large">
               <div className="table">
                 {payload.projects.length > 0 ? (
                   payload.projects.slice(0, 20).map((project) => (
-                    <div key={project.code} className="table-row">
+                    <button key={project.code} type="button" className="table-row table-row-button dashboard-row" onClick={() => navigate(`/projects?doc=${encodeURIComponent(project.code)}`)}>
                       <div>
                         <strong>{project.name}</strong>
                         <span>
@@ -51,7 +59,7 @@ export function DashboardPage() {
                         <span className={`pill ${project.priority.toLowerCase()}`}>{project.priority}</span>
                         <small>{project.dueDate}</small>
                       </div>
-                    </div>
+                    </button>
                   ))
                 ) : (
                   <p className="empty-copy">No project records were returned from ERPNext.</p>
@@ -63,7 +71,7 @@ export function DashboardPage() {
               <div className="task-list">
                 {payload.tasks.length > 0 ? (
                   payload.tasks.slice(0, 20).map((task) => (
-                    <div key={task.id} className="task-card">
+                    <button key={task.id} type="button" className="task-card task-card-button dashboard-task-row" onClick={() => navigate(`/tasks?doc=${encodeURIComponent(task.id)}`)}>
                       <div className="task-card-header">
                         <div>
                           <strong>{task.title}</strong>
@@ -79,7 +87,7 @@ export function DashboardPage() {
                         <span>{task.estimate}h estimate</span>
                         <span>{task.actual}h logged</span>
                       </div>
-                    </div>
+                    </button>
                   ))
                 ) : (
                   <p className="empty-copy">No task records were returned from ERPNext.</p>

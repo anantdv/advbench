@@ -65,6 +65,9 @@ select {
   border-right: 1px solid var(--panel-border);
   background: rgba(4, 10, 18, 0.7);
   backdrop-filter: blur(16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sidebar-backdrop {
@@ -220,8 +223,90 @@ select {
   min-width: 320px;
 }
 
+.topbar-actions-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .menu-btn {
   display: none;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon-svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.profile-menu {
+  position: relative;
+}
+
+.profile-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.profile-name {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 220px;
+  padding: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: #08111f;
+  box-shadow: var(--shadow);
+  z-index: 5;
+}
+
+.profile-dropdown-item {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 12px;
+  color: var(--text);
+  text-align: left;
+}
+
+.profile-dropdown-item span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.profile-dropdown-item.action {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .search {
@@ -307,6 +392,10 @@ select {
 
 .metric-card {
   padding: 18px;
+}
+
+.metric-card-button {
+  text-align: left;
 }
 
 .metric-card span {
@@ -555,6 +644,12 @@ select {
   min-width: 0;
 }
 
+.card-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
 .table-row strong,
 .table-row span,
 .table-row small,
@@ -665,6 +760,11 @@ select {
   background: rgba(124, 221, 193, 0.08);
 }
 
+.dashboard-row,
+.dashboard-task-row {
+  display: grid;
+}
+
 .drawer-backdrop {
   position: fixed;
   inset: 0;
@@ -716,6 +816,68 @@ select {
 
 .sidebar-backdrop {
   display: none;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: min(100%, 460px);
+  padding: 28px;
+  border: 1px solid var(--panel-border);
+  border-radius: 28px;
+  background: rgba(8, 17, 31, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.login-logo {
+  width: 160px;
+  margin-bottom: 14px;
+}
+
+.login-card h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.login-card p {
+  color: var(--muted);
+}
+
+.login-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.login-form label {
+  display: grid;
+  gap: 7px;
+  color: #dce6fa;
+  font-size: 0.92rem;
+}
+
+.login-form input {
+  width: 100%;
+  padding: 12px 13px;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.login-error {
+  margin: 0;
+  color: #ffb9c0;
+}
+
+.login-footnote {
+  margin-bottom: 0;
+  font-size: 0.85rem;
 }
 
 .command-palette-backdrop {
@@ -855,7 +1017,8 @@ select {
     z-index: 21;
     inset: 0 auto 0 0;
     width: min(100%, 320px);
-    min-height: 100vh;
+    height: 100dvh;
+    min-height: 100dvh;
     border-right: 1px solid var(--panel-border);
     border-bottom: 0;
     transform: translateX(-102%);
@@ -912,10 +1075,36 @@ select {
     width: 100%;
   }
 
+  .topbar-actions-row {
+    width: 100%;
+  }
+
   .menu-btn {
     display: inline-flex;
     justify-content: center;
-    width: 100%;
+    width: 48px;
+    padding-inline: 0;
+  }
+
+  .menu-btn span,
+  .palette-btn span {
+    display: none;
+  }
+
+  .palette-btn {
+    width: 48px;
+    padding-inline: 0;
+    justify-content: center;
+  }
+
+  .profile-trigger {
+    width: 48px;
+    padding-inline: 0;
+    justify-content: center;
+  }
+
+  .profile-name {
+    display: none;
   }
 
   .metrics-grid {
@@ -931,6 +1120,27 @@ select {
   .task-head,
   .task-row {
     grid-template-columns: 1fr;
+  }
+
+  .table-head {
+    display: none;
+  }
+
+  .card-field {
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    position: relative;
+  }
+
+  .card-field::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 4px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
   }
 
   .form-grid {
@@ -951,5 +1161,10 @@ select {
 
   .command-palette-list {
     grid-template-columns: 1fr;
+  }
+
+  .profile-dropdown {
+    right: auto;
+    left: 0;
   }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { Topbar } from '../components/layout/Topbar';
 import { SectionFrame } from '../components/dashboard/SectionFrame';
 import { DetailDrawer } from '../components/DetailDrawer';
@@ -166,6 +167,7 @@ function LinkField({
 export function ModulePage() {
   const activeSection = useUiStore((state) => state.activeSection);
   const searchQuery = useUiStore((state) => state.searchQuery);
+  const [searchParams, setSearchParams] = useSearchParams();
   const title = copy[activeSection].title;
   const description = copy[activeSection].description;
 
@@ -280,6 +282,14 @@ export function ModulePage() {
   const openProject = (mode: 'view' | 'create' | 'edit', item?: Project) => setDrawer({ kind: 'project', mode, item });
   const openSprint = (mode: 'view' | 'create' | 'edit', item?: Sprint) => setDrawer({ kind: 'sprint', mode, item });
   const openTask = (mode: 'view' | 'create' | 'edit', item?: Task) => setDrawer({ kind: 'task', mode, item });
+  const closeDrawer = () => {
+    setDrawer(null);
+    if (searchParams.get('doc')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('doc');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   useEffect(() => {
     setProjectPage(1);
@@ -306,6 +316,25 @@ export function ModulePage() {
     setReportPage(1);
     setAdminPage(1);
   }, [searchQuery]);
+
+  useEffect(() => {
+    const doc = searchParams.get('doc');
+    if (!doc) return;
+
+    if (activeSection === 'projects') {
+      const selected = projectData.find((project) => project.code === doc);
+      if (selected && drawer?.kind !== 'project' && selectedProject?.code !== selected.code) {
+        setDrawer({ kind: 'project', mode: 'view', item: selected });
+      }
+    }
+
+    if (activeSection === 'tasks') {
+      const selected = taskData.find((task) => task.id === doc);
+      if (selected && drawer?.kind !== 'task' && selectedTask?.id !== selected.id) {
+        setDrawer({ kind: 'task', mode: 'view', item: selected });
+      }
+    }
+  }, [activeSection, drawer?.kind, projectData, searchParams, selectedProject?.code, selectedTask?.id, taskData]);
 
   if (activeSection === 'projects') {
     return (
@@ -344,35 +373,35 @@ export function ModulePage() {
                   <span>Creator</span>
                   <span>Status</span>
                   <span>Completion</span>
-                  <span>Value</span>
+                  <span>Budget</span>
                 </div>
                 {paginatedProjects.map((project) => (
                   <button key={project.code} type="button" className="table-row table-row-button project-row" onClick={() => openProject('view', project)}>
-                    <div>
+                    <div className="card-field" data-label="Project">
                       <strong>{project.name}</strong>
                       <span>
                         {project.code} · {project.client}
                       </span>
                     </div>
-                    <div>
+                    <div className="card-field" data-label="Customer">
                       <span>{project.client}</span>
                       <small>Customer</small>
                     </div>
-                    <div>
+                    <div className="card-field" data-label="Creator">
                       <span>{project.manager}</span>
                       <small>Manager</small>
                     </div>
-                    <div>
+                    <div className="card-field" data-label="Status">
                       <span>{project.status}</span>
                       <small>{project.priority}</small>
                     </div>
-                    <div>
+                    <div className="card-field" data-label="Completion">
                       <span>{project.progress}%</span>
                       <small>Complete</small>
                     </div>
-                    <div>
+                    <div className="card-field" data-label="Budget">
                       <span>${project.budget.toLocaleString()}</span>
-                      <small>Value</small>
+                      <small>Budget</small>
                     </div>
                   </button>
                 ))}
@@ -395,7 +424,7 @@ export function ModulePage() {
           open={Boolean(drawer && drawer.kind === 'project')}
           title={drawer?.mode === 'create' ? 'Create Project' : selectedProject?.name ?? 'Project Details'}
           subtitle={selectedProject ? selectedProject.code : 'Create or inspect a live ERPNext project'}
-          onClose={() => setDrawer(null)}
+          onClose={closeDrawer}
         >
           {drawer?.mode === 'view' && selectedProject ? (
             <div className="detail-stack">
@@ -579,20 +608,31 @@ export function ModulePage() {
                 </div>
                 {paginatedTasks.map((task) => (
                   <button key={task.id} type="button" className="task-card task-card-button task-row" onClick={() => openTask('view', task)}>
-                    <div className="task-card-header">
-                      <div>
-                        <strong>{task.title}</strong>
-                        <span>
-                          {task.id} · {task.project}
-                        </span>
-                      </div>
-                      <span className={`pill ${task.priority.toLowerCase()}`}>{task.status}</span>
+                    <div className="card-field" data-label="Task">
+                      <strong>{task.title}</strong>
+                      <span>
+                        {task.id}
+                      </span>
                     </div>
-                    <div className="task-meta">
+                    <div className="card-field" data-label="Project">
+                      <span>{task.project}</span>
+                      <small>Project</small>
+                    </div>
+                    <div className="card-field" data-label="Assignee">
                       <span>{task.assignee}</span>
-                      <span>Due {task.dueDate}</span>
-                      <span>{task.estimate}h estimate</span>
-                      <span>{task.actual}h logged</span>
+                      <small>Assignee</small>
+                    </div>
+                    <div className="card-field" data-label="Status">
+                      <span>{task.status}</span>
+                      <small className={`pill ${task.priority.toLowerCase()}`}>{task.priority}</small>
+                    </div>
+                    <div className="card-field" data-label="Due">
+                      <span>{task.dueDate}</span>
+                      <small>Due date</small>
+                    </div>
+                    <div className="card-field" data-label="Estimate">
+                      <span>{task.estimate}h</span>
+                      <small>{task.actual}h logged</small>
                     </div>
                   </button>
                 ))}
@@ -615,7 +655,7 @@ export function ModulePage() {
           open={Boolean(drawer && drawer.kind === 'task')}
           title={drawer?.mode === 'create' ? 'Create Task' : selectedTask?.title ?? 'Task Details'}
           subtitle={selectedTask ? selectedTask.id : 'Create or inspect a live ERPNext task'}
-          onClose={() => setDrawer(null)}
+          onClose={closeDrawer}
         >
           {drawer?.mode === 'view' && selectedTask ? (
             <div className="detail-stack">

@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { DEFAULT_ERPNEXT_BASE_URL } from '../config/erpnext';
+import { erpnextConfig } from '../config/erpnext';
 import logo from '../../cropped-ADV-Logo-300x115.png';
 
 export function LoginPage() {
@@ -23,19 +23,32 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(`${erpnextConfig.baseUrl}/api/method/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        body: new URLSearchParams({
+          usr: username,
+          pwd: password,
+        }),
+        credentials: 'include',
       });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || 'Login failed');
+      const raw = await response.text();
+      let payload: { message?: string; error?: string; full_name?: string; raw?: string } | null = null;
+      try {
+        payload = raw ? JSON.parse(raw) : null;
+      } catch {
+        payload = { raw };
+      }
+      if (!response.ok) {
+        throw new Error(payload?.message || payload?.error || payload?.raw || 'Login failed');
       }
 
       setUser({
-        username: payload.user.username,
-        displayName: payload.user.displayName || payload.user.username,
+        username,
+        displayName: payload?.full_name || username,
       });
       navigate('/', { replace: true });
     } catch (loginError) {
@@ -50,15 +63,15 @@ export function LoginPage() {
       <section className="login-card">
         <img className="brand-logo login-logo" src={logo} alt="anantdv logo" />
         <h1>Sign in to ADVBench</h1>
-        <p>Use your ERPNext credentials to access the workspace.</p>
+        <p>Use your credentials to access the workspace.</p>
 
         <form className="login-form" onSubmit={handleSubmit}>
           <label>
-            <span>ERPNext Username</span>
+            <span>Username</span>
             <input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" required />
           </label>
           <label>
-            <span>ERPNext Password</span>
+            <span>Password</span>
             <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" required />
           </label>
           <button type="submit" className="primary-btn" disabled={loading}>
@@ -66,10 +79,6 @@ export function LoginPage() {
           </button>
           {error ? <p className="login-error">{error}</p> : null}
         </form>
-
-        <p className="login-footnote">
-          ERPNext base URL: <code>{DEFAULT_ERPNEXT_BASE_URL}</code>
-        </p>
       </section>
     </main>
   );

@@ -832,11 +832,13 @@ select {
   border-radius: 28px;
   background: rgba(8, 17, 31, 0.92);
   box-shadow: var(--shadow);
+  text-align: center;
 }
 
 .login-logo {
   width: 160px;
-  margin-bottom: 14px;
+  display: block;
+  margin: 0 auto 14px;
 }
 
 .login-card h1 {
@@ -852,6 +854,7 @@ select {
   display: grid;
   gap: 14px;
   margin-top: 18px;
+  text-align: left;
 }
 
 .login-form label {

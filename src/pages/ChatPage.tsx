@@ -100,6 +100,10 @@ export function ChatPage() {
     refetchInterval: 4000,
   });
 
+  const rooms = Array.isArray(roomsQuery.data) ? roomsQuery.data : [];
+  const users = Array.isArray(usersQuery.data) ? usersQuery.data : [];
+  const unreadSummary = unreadQuery.data ?? { totalUnreadCount: 0, roomUnreadCounts: {} };
+
   const createRoomMutation = useMutation({
     mutationFn: (input: { roomType: ChatRoomType; title?: string; project?: string; projectTitle?: string; participantUsers?: string[] }) =>
       createChatRoom(actor, input),
@@ -173,10 +177,10 @@ export function ChatPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['chat'] }),
   });
 
-  const selectedRoom = useMemo(() => roomsQuery.data?.find((room) => room.id === selectedRoomId) ?? null, [roomsQuery.data, selectedRoomId]);
+  const selectedRoom = useMemo(() => rooms.find((room) => room.id === selectedRoomId) ?? null, [rooms, selectedRoomId]);
   const filteredRooms = useMemo(() => {
     const term = normalizeSearch(roomSearch);
-    const source = roomsQuery.data ?? [];
+    const source = rooms;
     if (!term) return source;
     return source.filter((room) => {
       const memberNames = room.members.map((member) => member.fullName || member.user).join(' ');
@@ -185,7 +189,7 @@ export function ChatPage() {
         .toLowerCase()
         .includes(term);
     });
-  }, [roomSearch, roomsQuery.data]);
+  }, [roomSearch, rooms]);
 
   const messagesQuery = useInfiniteQuery({
     queryKey: ['chat', 'messages', actor, selectedRoomId],
@@ -201,15 +205,15 @@ export function ChatPage() {
   }, [messagesQuery.data?.pages, optimisticMessages, selectedRoomId]);
 
   const availableDirectUsers = useMemo(() => {
-    const roster = usersQuery.data ?? [];
+    const roster = users;
     return roster.filter((item) => item.user !== actor && normalizeSearch(`${item.user} ${item.fullName} ${item.email}`).includes(normalizeSearch(directTarget)));
-  }, [actor, directTarget, usersQuery.data]);
+  }, [actor, directTarget, users]);
 
   const availableInviteUsers = useMemo(() => {
-    const roster = usersQuery.data ?? [];
+    const roster = users;
     const members = new Set(selectedRoom?.members.map((member) => member.user) ?? []);
     return roster.filter((item) => item.user !== actor && !members.has(item.user) && normalizeSearch(`${item.user} ${item.fullName} ${item.email}`).includes(normalizeSearch(inviteTarget)));
-  }, [actor, inviteTarget, selectedRoom?.members, usersQuery.data]);
+  }, [actor, inviteTarget, selectedRoom?.members, users]);
 
   const actorIsMember = Boolean(selectedRoom?.members.some((member) => member.user === actor));
   const canManageMembers = Boolean(selectedRoom && selectedRoom.roomType === 'project_group' && actorIsMember);
@@ -265,7 +269,7 @@ export function ChatPage() {
 
   const openDirectChat = () => {
     if (!directTarget) return;
-    const resolvedUser = resolveUserValue(directTarget, usersQuery.data ?? []);
+    const resolvedUser = resolveUserValue(directTarget, users);
     setRoomError('');
     createRoomMutation.mutate({
       roomType: 'direct',
@@ -287,7 +291,7 @@ export function ChatPage() {
 
   const handleAddMember = () => {
     if (!selectedRoomId || !inviteTarget.trim()) return;
-    addMemberMutation.mutate({ roomId: selectedRoomId, user: resolveUserValue(inviteTarget, usersQuery.data ?? []) });
+    addMemberMutation.mutate({ roomId: selectedRoomId, user: resolveUserValue(inviteTarget, users) });
     setInviteTarget('');
   };
 
@@ -304,7 +308,7 @@ export function ChatPage() {
               <p className="panel-kicker">Conversations</p>
               <h2>Inbox</h2>
             </div>
-            <span className="badge">{unreadQuery.data?.totalUnreadCount ?? 0} unread</span>
+            <span className="badge">{unreadSummary.totalUnreadCount} unread</span>
           </div>
 
           <label className="search chat-search">

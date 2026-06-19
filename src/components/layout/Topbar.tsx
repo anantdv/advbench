@@ -59,27 +59,31 @@ export function Topbar({ title, description }: Props) {
 
   return (
     <header className="topbar">
-      <div>
-        <h1>{title}</h1>
-        <p className="lead">{description}</p>
+      <div className="topbar-main">
+        <div className="topbar-title-row">
+          <div className="topbar-copy">
+            <h1>{title}</h1>
+            <p className="lead">{description}</p>
+          </div>
+          <label className="search topbar-search">
+            <span>Global search</span>
+            <input
+              value={query}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search tasks, projects, people..."
+            />
+          </label>
+        </div>
       </div>
 
       <div className="topbar-actions">
-        <button type="button" className="secondary-btn icon-btn menu-btn" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(!sidebarOpen)}>
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-svg">
-            <path d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-          <span>Menu</span>
-        </button>
-        <label className="search">
-          <span>Global search</span>
-          <input
-            value={query}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search tasks, projects, people..."
-          />
-        </label>
         <div className="topbar-actions-row">
+          <button type="button" className="secondary-btn icon-btn menu-btn" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(!sidebarOpen)}>
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-svg">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            <span>Menu</span>
+          </button>
           <button type="button" className="secondary-btn icon-btn palette-btn" onClick={() => setCommandPaletteOpen(true)}>
             <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-svg">
               <circle cx="11" cy="11" r="6" />

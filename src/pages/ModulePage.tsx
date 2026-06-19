@@ -347,7 +347,7 @@ export function ModulePage() {
         <Topbar title={title} description={description} />
 
         <section className="dashboard-stack">
-          <SectionFrame kicker="Projects" title="Projects">
+          <SectionFrame kicker="ERPNext" title="Project records">
             <div className="toolbar">
               {projectStatuses.map((status) => (
                 <button
@@ -584,7 +584,7 @@ export function ModulePage() {
         <Topbar title={title} description={description} />
 
         <section className="dashboard-stack">
-          <SectionFrame kicker="Tasks" title="Tasks">
+          <SectionFrame kicker="ERPNext" title="Task records">
             <div className="toolbar">
               {taskStatuses.map((status) => (
                 <button

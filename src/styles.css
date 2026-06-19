@@ -196,6 +196,22 @@ select {
   margin-bottom: 22px;
 }
 
+.topbar-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.topbar-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.topbar-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--accent);
@@ -206,7 +222,7 @@ select {
 
 .topbar h1 {
   margin: 0;
-  font-size: clamp(2rem, 3.4vw, 3.3rem);
+  font-size: clamp(1.55rem, 2.4vw, 2.4rem);
   line-height: 1.05;
 }
 
@@ -220,7 +236,9 @@ select {
 .topbar-actions {
   display: grid;
   gap: 12px;
-  min-width: 320px;
+  min-width: 0;
+  flex: 0 0 auto;
+  justify-items: end;
 }
 
 .topbar-actions-row {
@@ -230,7 +248,7 @@ select {
 }
 
 .menu-btn {
-  display: none;
+  display: none !important;
 }
 
 .icon-btn {
@@ -314,6 +332,12 @@ select {
   gap: 6px;
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+.topbar-search {
+  width: min(360px, 100%);
+  flex: 0 1 360px;
+  margin-top: 4px;
 }
 
 .search input {
@@ -1316,6 +1340,17 @@ select {
     flex-direction: column;
   }
 
+  .topbar-title-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbar-search {
+    width: 100%;
+    flex-basis: auto;
+    margin-top: 0;
+  }
+
   .topbar-actions {
     min-width: 0;
     width: 100%;
@@ -1326,7 +1361,7 @@ select {
   }
 
   .menu-btn {
-    display: inline-flex;
+    display: inline-flex !important;
     justify-content: center;
     width: 48px;
     padding-inline: 0;

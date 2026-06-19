@@ -22,17 +22,13 @@ function parseEnv(text) {
 export function loadConfig() {
   const env = fs.existsSync(envPath) ? parseEnv(fs.readFileSync(envPath, 'utf8')) : {};
   const baseUrl = (env.VITE_ERPNEXT_BASE_URL || process.env.VITE_ERPNEXT_BASE_URL || '').trim().replace(/\/+$/, '');
-  const apiKey = (env.VITE_ERPNEXT_API_KEY || process.env.VITE_ERPNEXT_API_KEY || '').trim();
-  const apiSecret = (env.VITE_ERPNEXT_API_SECRET || process.env.VITE_ERPNEXT_API_SECRET || '').trim();
 
-  if (!baseUrl || !apiKey || !apiSecret) {
-    throw new Error('ERPNext credentials are missing.');
+  if (!baseUrl) {
+    throw new Error('ERPNext base URL is missing.');
   }
 
   return {
     baseUrl,
-    apiKey,
-    apiSecret,
   };
 }
 
@@ -45,7 +41,6 @@ export async function erpnextJson(config, requestPath, init = {}) {
   const response = await fetch(buildUrl(config.baseUrl, requestPath), {
     ...init,
     headers: {
-      Authorization: `token ${config.apiKey}:${config.apiSecret}`,
       Accept: 'application/json',
       ...(init.headers || {}),
     },

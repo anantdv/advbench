@@ -9,6 +9,8 @@ npm install
 npm run dev
 ```
 
+Configure `VITE_ERPNEXT_BASE_URL` in `.env.local` if you want the app to talk to a live ERPNext instance.
+
 ## What is included
 
 - Mobile-first responsive product shell

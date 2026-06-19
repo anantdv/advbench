@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { buildErpnextUrl } from '../../config/erpnext';
 import { useAuthStore } from '../../store/authStore';
 import { useUiStore } from '../../store/uiStore';
 
@@ -45,9 +46,12 @@ export function Topbar({ title, description }: Props) {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch(buildErpnextUrl('/api/method/logout'), {
+        method: 'POST',
+        credentials: 'include',
+      });
     } catch {
-      // Local logout still proceeds even if the relay call fails.
+      // Local logout still proceeds even if the ERPNext call fails.
     }
     clearUser();
     navigate('/login', { replace: true });

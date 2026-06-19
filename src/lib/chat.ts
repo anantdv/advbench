@@ -1,5 +1,3 @@
-import { buildErpnextUrl } from '../config/erpnext';
-
 export type ChatRoomType = 'direct' | 'project_group';
 
 export type ChatUserOption = {
@@ -89,7 +87,7 @@ function getText(value: unknown) {
 }
 
 export async function fetchChatUsers(actor: string, query = '') {
-  const url = new URL(buildErpnextUrl('/api/chat/users'), window.location.origin);
+  const url = new URL('/api/chat/users', window.location.origin);
   url.searchParams.set('user', actor);
   if (query.trim()) {
     url.searchParams.set('q', query.trim());
@@ -98,7 +96,7 @@ export async function fetchChatUsers(actor: string, query = '') {
 }
 
 export async function fetchChatRooms(actor: string, search = '') {
-  const url = new URL(buildErpnextUrl('/api/chat/rooms'), window.location.origin);
+  const url = new URL('/api/chat/rooms', window.location.origin);
   url.searchParams.set('user', actor);
   if (search.trim()) {
     url.searchParams.set('q', search.trim());
@@ -116,7 +114,7 @@ export async function createChatRoom(
     participantUsers?: string[];
   },
 ) {
-  return requestJson<ChatRoomSummary>(buildErpnextUrl('/api/chat/rooms'), actor, {
+  return requestJson<ChatRoomSummary>('/api/chat/rooms', actor, {
     method: 'POST',
     body: JSON.stringify({
       ...input,
@@ -133,7 +131,7 @@ export async function fetchChatMessages(
     limit?: number;
   } = {},
 ) {
-  const url = new URL(buildErpnextUrl(`/api/chat/rooms/${encodeURIComponent(roomId)}/messages`), window.location.origin);
+  const url = new URL(`/api/chat/rooms/${encodeURIComponent(roomId)}/messages`, window.location.origin);
   url.searchParams.set('user', actor);
   if (options.before) {
     url.searchParams.set('before', options.before);
@@ -157,7 +155,7 @@ export async function sendChatMessage(
     clientMessageId?: string;
   },
 ) {
-  return requestJson<ChatMessage>(buildErpnextUrl(`/api/chat/rooms/${encodeURIComponent(roomId)}/messages`), actor, {
+  return requestJson<ChatMessage>(`/api/chat/rooms/${encodeURIComponent(roomId)}/messages`, actor, {
     method: 'POST',
     body: JSON.stringify({
       ...input,
@@ -167,7 +165,7 @@ export async function sendChatMessage(
 }
 
 export async function markChatRoomRead(actor: string, roomId: string) {
-  return requestJson<{ ok: true }>(buildErpnextUrl(`/api/chat/rooms/${encodeURIComponent(roomId)}/read`), actor, {
+  return requestJson<{ ok: true }>(`/api/chat/rooms/${encodeURIComponent(roomId)}/read`, actor, {
     method: 'POST',
     body: JSON.stringify({ actor }),
   });
@@ -181,7 +179,7 @@ export async function addChatRoomMember(
     role?: 'owner' | 'member';
   },
 ) {
-  return requestJson<{ ok: true }>(buildErpnextUrl(`/api/chat/rooms/${encodeURIComponent(roomId)}/members`), actor, {
+  return requestJson<{ ok: true }>(`/api/chat/rooms/${encodeURIComponent(roomId)}/members`, actor, {
     method: 'POST',
     body: JSON.stringify({
       ...input,
@@ -191,7 +189,7 @@ export async function addChatRoomMember(
 }
 
 export async function removeChatRoomMember(actor: string, roomId: string, user: string) {
-  return requestJson<{ ok: true }>(buildErpnextUrl(`/api/chat/rooms/${encodeURIComponent(roomId)}/members`), actor, {
+  return requestJson<{ ok: true }>(`/api/chat/rooms/${encodeURIComponent(roomId)}/members`, actor, {
     method: 'DELETE',
     body: JSON.stringify({
       actor,
@@ -201,7 +199,7 @@ export async function removeChatRoomMember(actor: string, roomId: string, user: 
 }
 
 export async function fetchChatUnreadCounts(actor: string) {
-  const url = new URL(buildErpnextUrl('/api/chat/unread'), window.location.origin);
+  const url = new URL('/api/chat/unread', window.location.origin);
   url.searchParams.set('user', actor);
   return requestJson<{ totalUnreadCount: number; roomUnreadCounts: Record<string, number> }>(url.pathname + url.search, actor);
 }

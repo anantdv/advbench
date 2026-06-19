@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { erpnextConfig } from '../config/erpnext';
+import { buildErpnextUrl } from '../config/erpnext';
 import { useAuthStore } from '../store/authStore';
 import logo from '../../cropped-ADV-Logo-300x115.png';
 
@@ -23,7 +23,7 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${erpnextConfig.baseUrl}/api/method/login`, {
+      const response = await fetch(buildErpnextUrl('/api/method/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',

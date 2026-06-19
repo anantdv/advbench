@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { erpnextConfig } from '../../config/erpnext';
+import { buildErpnextUrl } from '../../config/erpnext';
 import { useAuthStore } from '../../store/authStore';
 import { useUiStore } from '../../store/uiStore';
 
@@ -46,7 +46,7 @@ export function Topbar({ title, description }: Props) {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${erpnextConfig.baseUrl}/api/method/logout`, {
+      await fetch(buildErpnextUrl('/api/method/logout'), {
         method: 'POST',
         credentials: 'include',
       });

@@ -5,7 +5,7 @@ import path from 'node:path';
 const root = process.cwd();
 const envPath = path.join(root, '.env.local');
 const cachePath = path.join(root, 'src', 'generated', 'erpnext-cache.json');
-const defaultBaseUrl = 'http://182.71.135.110:8088';
+const defaultBaseUrl = 'https://erp.anantdv.com';
 
 function parseEnv(text) {
   const result = {};

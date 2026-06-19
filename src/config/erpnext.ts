@@ -1,4 +1,4 @@
-export const DEFAULT_ERPNEXT_BASE_URL = 'http://182.71.135.110:8088';
+export const DEFAULT_ERPNEXT_BASE_URL = 'https://erp.anantdv.com';
 
 const baseUrl = import.meta.env.VITE_ERPNEXT_BASE_URL?.trim().replace(/\/+$/, '') || DEFAULT_ERPNEXT_BASE_URL;
 
